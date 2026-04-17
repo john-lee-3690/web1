@@ -32,7 +32,7 @@ h1{font-size:17px;font-weight:500;text-align:center;margin-bottom:10px}
 .reading-badge{display:inline-block;background:#e6f1fb;color:#185fa5;font-size:12px;padding:2px 8px;border-radius:10px;margin-top:3px}
 .stroke-info{font-size:11px;color:#888780;margin-top:3px}
 .phase-tabs{display:flex;gap:0;margin-bottom:8px;border:1px solid #d3d1c7;border-radius:8px;overflow:hidden}
-.phase-tab{flex:1;padding:7px 2px;font-size:12px;text-align:center;cursor:pointer;background:#fff;color:#888780;border:none;border-right:1px solid #d3d1c7;transition:all .15s}
+.phase-tab{flex:1;padding:10px 2px;font-size:22px;text-align:center;cursor:pointer;background:#fff;color:#888780;border:none;border-right:1px solid #d3d1c7;transition:all .15s}
 .phase-tab:last-child{border-right:none}
 .phase-tab.active{background:#185fa5;color:#fff;font-weight:500}
 .phase-tab.done{background:#e1f5ee;color:#0f6e56}
@@ -206,7 +206,7 @@ h1{font-size:18px!important;font-weight:700!important}
 /* ── phase-tabs 가로 — 높이 키움 ── */
 .phase-tabs{display:flex;gap:0;margin-bottom:7px;border:1px solid #d3d1c7;
   border-radius:8px;overflow:hidden;flex-direction:row!important;width:auto!important}
-.phase-tab{flex:1;padding:9px 2px!important;font-size:12px!important;
+.phase-tab{flex:1;padding:9px 2px!important;font-size:22px!important;
   text-align:center;cursor:pointer;background:#fff;color:#888780;
   border:none;border-right:1px solid #d3d1c7;transition:all .15s;
   display:block!important;writing-mode:horizontal-tb!important;
@@ -350,9 +350,9 @@ option.locked{color:#bbb}
       </div>
     </div>
     <div class="phase-tabs">
-      <div class="phase-tab" id="tab-watch">① 보기</div>
+      <div class="phase-tab" id="tab-watch">① 순서보기</div>
       <div class="phase-tab disabled" id="tab-trace">② 따라쓰기</div>
-      <div class="phase-tab disabled" id="tab-free">③ 자유쓰기</div>
+      <div class="phase-tab disabled" id="tab-free">③ 쓰기연습</div>
     </div>
     <div class="dot-row" id="dot-row"></div>
     <div class="attempt-row" id="attempt-row" style="display:none"></div>
@@ -591,7 +591,7 @@ const LANG = {
     free_review_ok: (stage)=>`복습 완료! (${stage}단계 → ${stage+1}단계)`,
     free_review_fail: '다음에 다시 복습해요.',
     btn_retry:'↺ 다시쓰기', btn_next:'다음 한자 ▶',
-    btn_trace:'② 따라쓰기', btn_watch:'① 보기', btn_to_trace:'② 따라쓰기 →',
+    btn_trace:'② 따라쓰기', btn_watch:'① 순서보기', btn_to_trace:'② 따라쓰기 →',
     review_n: (n)=>n>0?`복습 ${n}자`:'복습 없음',
     stat_n:   (a,t)=>`${a}/${t}자 학습`,
     mastered: '완전 습득!',
@@ -719,6 +719,7 @@ function loadProgress(){
 function saveProgress(){ localStorage.setItem('hanja_progress', JSON.stringify(progress)); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function addDays(s,n){ const d=new Date(s); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function getWatchRounds(sc){ return sc<=6?1:sc<=12?2:3; }
 function getTraceRounds(sc){ return sc<=3?1:sc<=7?2:3; }
 
 function getTodayReviews(){
@@ -787,11 +788,18 @@ let freeAttempt = 0, freePassCount = 0, freeMaxAttempts = 3;
 let freeBestScore = 0, freeAttemptResults = [];
 
 
-// ── 좌표 변환: median 0~1 → canvas px (y 반전 없음) ──
+// ── 좌표 변환: median 0~1 → canvas px (중앙 정렬 보정) ──
 function m2c(mx, my) {
-  const pad = SZ * 0.06;
+  // hanzi-writer 데이터가 왼쪽에 치우쳐 있어서 x축 보정
+  const pad = SZ * 0.04;
   const inner = SZ - pad * 2;
-  return { x: pad + mx * inner, y: pad + my * inner };
+  // x 좌표를 중앙으로 당김: 실제 범위 0.06~0.94를 0~1로 재매핑
+  const normX = (mx - 0.06) / 0.88;
+  const normY = (my - 0.04) / 0.92;
+  return {
+    x: pad + Math.max(0, Math.min(1, normX)) * inner,
+    y: pad + Math.max(0, Math.min(1, normY)) * inner
+  };
 }
 
 // ── Catmull-Rom 스플라인 ──
@@ -1003,7 +1011,7 @@ function changePage(dir){
 }
 // ══ 급수별 데이터 동적 로드 ══
 // GitHub Pages 기본 URL (배포 후 실제 URL로 변경)
-const DATA_BASE_URL = './data/';  // 상대 경로: 같은 서버의 data/ 폴더
+const DATA_BASE_URL = './';  // JSON 파일을 루트에 올릴 때
 const _loadedGrades = new Set(['8급']); // 8급은 내장
 const _loadingGrades = new Set();
 
@@ -1166,30 +1174,33 @@ function goPhase(p, auto=false){
   else initFree();
 }
 
-// ══ ① 보기 ══
-let watchSplines=[];
+// ══ ① 순서보기 ══
+let watchSplines=[], watchRound=1, maxWatchRounds=1;
 function initWatch(auto=false){
   const h=DB[cGrade][cIdx];
   watchSplines=h.medians.map(med=>catmullRom(med,14));
+  maxWatchRounds=isReviewMode?1:getWatchRounds(h.strokeCount);
+  watchRound=1;
   renderDots(-1);
   setStatus('획순 애니메이션을 보여 드립니다...','',false);
   renderBtns([{label:'⏹ 중지',cls:'btn-danger',fn:stopWatch}]);
-  // SZ가 0이면 setupCanvas 재실행
   if(SZ < 10) setupCanvas();
   setTimeout(startWatch, auto ? 500 : 0);
 }
 function stopWatch(){
   stopAnim();
   renderBtns([
-    {label:'▶ 다시 보기',fn:startWatch},
-    {label:'② 따라쓰기 →',cls:'btn-primary',fn:()=>{ playSfx('phase'); goPhase('trace',true); }},
+    {label:'▶ 다시 보기',fn:()=>{watchRound=1;startWatch();}},
+    {label:'② 따라쓰기 →',cls:'btn-primary',fn:()=>{ playSfx('tick'); goPhase('trace',true); }},
   ]);
   setStatus('다시 보거나 따라쓰기로 넘어가세요.');
 }
 function startWatch(){
   stopAnim(); clearAnim(); isAnimating=true;
   playSfx('tick');
+  const roundLabel=maxWatchRounds>1?` (${watchRound}/${maxWatchRounds}회)`:'';
   renderBtns([{label:'⏹ 중지',cls:'btn-danger',fn:stopWatch}]);
+  setStatus(`획순 보여드립니다${roundLabel}`,'',false);
   const h=DB[cGrade][cIdx];
   const LW=Math.max(10,SZ/28), DOT=Math.max(8,SZ/36);
   const actx=document.getElementById('anim-canvas').getContext('2d');
@@ -1197,13 +1208,26 @@ function startWatch(){
   function animStroke(si){
     if(!isAnimating)return;
     if(si>=h.strokeCount){
-      isAnimating=false; phaseDone.watch=true; watchDone[h.char]=true;
-      renderDots(h.strokeCount);
-      setStatus('확인 완료! ② 따라쓰기 버튼을 눌러 진행하세요.','success');
-      renderBtns([
-        {label:'▶ 다시 보기',fn:startWatch},
-        {label:'② 따라쓰기 →',cls:'btn-primary',fn:()=>{ playSfx('tick'); goPhase('trace',true); }},
-      ]);
+      // 이 회차 완료
+      if(watchRound < maxWatchRounds){
+        // 다음 회차 자동 시작
+        watchRound++;
+        clearAnim();
+        const rl=` (${watchRound}/${maxWatchRounds}회)`;
+        setStatus(`${watchRound}번째 보여드립니다${rl}`,'',false);
+        animTimer=setTimeout(()=>{ renderDots(-1); animStroke(0); }, 600);
+      } else {
+        // 모든 회차 완료 → 자동으로 따라쓰기 전환
+        isAnimating=false; phaseDone.watch=true; watchDone[h.char]=true;
+        renderDots(h.strokeCount);
+        setStatus('확인 완료! 따라쓰기로 넘어갑니다...','success');
+        renderBtns([
+          {label:'▶ 다시 보기',fn:()=>{watchRound=1;startWatch();}},
+          {label:'② 따라쓰기 →',cls:'btn-primary',fn:()=>{ playSfx('tick'); goPhase('trace',true); }},
+        ]);
+        // 1.2초 후 자동으로 따라쓰기 전환
+        animTimer=setTimeout(()=>{ playSfx('tick'); goPhase('trace',true); }, 1200);
+      }
       return;
     }
     renderDots(si);
@@ -1291,7 +1315,7 @@ function evalStroke(userPts, si){
   return Math.round((posSc*0.55+dirSc*0.45)*100);
 }
 
-// ══ ③ 자유쓰기 ══
+// ══ ③ 쓰기연습 ══
 let freeStep=0, freeScores=[], freeUserPts=[], freeSplines=[];
 let freeErrorCooldown=false;
 
@@ -1533,7 +1557,7 @@ function onUp(){
           setStatus(T().trace_done,'success');
           renderBtns([
             {label:T().trace_redo,fn:resetTrace},
-            {label:'③ 자유쓰기 →',cls:'btn-primary',fn:()=>{ playSfx('tick'); goPhase('free'); }},
+            {label:'③ 쓰기연습 →',cls:'btn-primary',fn:()=>{ playSfx('tick'); goPhase('free'); }},
           ]);
         }
       } else {
