@@ -6,7 +6,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -23,26 +22,12 @@
   const isAndroid = /Android/i.test(ua);
   const url = location.href;
   if(isAndroid){
-    // Android: Chrome으로 강제 오픈
     location.href = 'intent://' + url.replace(/^https?:\/\//, '') +
       '#Intent;action=android.intent.action.VIEW;' +
       'category=android.intent.category.BROWSABLE;' +
       'scheme=https;package=com.android.chrome;end';
   } else {
-    // iOS: 카카오는 location.href 트릭으로 Safari 유도
-    // 페이지 로드 후 안내 배너 표시 (startApp 흐름은 유지)
     window._iosInApp = true;
-  }
-})();
-// 서비스워커 + 캐시 즉시 삭제
-(async function(){
-  if('serviceWorker' in navigator){
-    const regs = await navigator.serviceWorker.getRegistrations().catch(()=>[]);
-    await Promise.all(regs.map(r=>r.unregister()));
-  }
-  if(window.caches){
-    const keys = await caches.keys().catch(()=>[]);
-    await Promise.all(keys.map(k=>caches.delete(k)));
   }
 })();
 </script>
@@ -2006,18 +1991,6 @@ window.addEventListener('resize',()=>{
 });
 _initVoices(); // 페이지 로드 시점에 미리 voices 준비 시작
 init();
-
-// ── 서비스워커 완전 해제 (오래된 캐시 문제 방지) ──
-if('serviceWorker' in navigator){
-  window.addEventListener('load', async ()=>{
-    const regs = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(regs.map(r => r.unregister()));
-    if(window.caches){
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
-    }
-  });
-}
 
 // ── 설치/카카오 배너 ──
 let _bannerMode = null;
