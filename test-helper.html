@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>한자쓰기 테스트 헬퍼</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+
+.header{background:linear-gradient(135deg,#1a1f2e,#0f1117);border-bottom:1px solid #2d3748;padding:14px 20px}
+.header h1{font-size:17px;font-weight:700;color:#f6ad55}
+.header p{font-size:11px;color:#718096;margin-top:2px}
+
+.main{max-width:480px;margin:0 auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+
+/* ── 카드 ── */
+.card{background:#1a202c;border:1px solid #2d3748;border-radius:12px;padding:14px}
+.card-title{font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
+/* ── 배너 ── */
+.banner{border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.6}
+.banner.info{background:#1a2744;border:1px solid #2b4a7a;color:#90cdf4}
+.banner.ok{background:#1a2d1a;border:1px solid #276749;color:#68d391}
+.banner.warn{background:#2d2000;border:1px solid #744210;color:#f6ad55}
+
+/* ── 급수 테이블 ── */
+.grade-table{display:flex;flex-direction:column;gap:6px}
+.grade-row{
+  display:grid;
+  grid-template-columns:52px 1fr auto auto auto;
+  align-items:center;gap:6px;
+  background:#2d3748;border-radius:10px;padding:8px 10px;
+}
+.grade-name{font-size:14px;font-weight:700;color:#e2e8f0}
+.grade-status{font-size:12px;color:#718096;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grade-status.done{color:#68d391}
+.grade-status.partial{color:#f6ad55}
+.grade-status.none{color:#4a5568}
+
+.action-btn{
+  padding:5px 10px;border:none;border-radius:7px;
+  font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;
+  white-space:nowrap;transition:all .12s;
+}
+.action-btn:active{transform:scale(0.95)}
+.btn-complete{background:#276749;color:#9ae6b4}
+.btn-complete:hover{background:#2f855a}
+.btn-reset{background:#553c1a;color:#fbd38d}
+.btn-reset:hover{background:#744210}
+.btn-loading{background:#2d3748;color:#4a5568;cursor:default}
+
+/* ── 전체 조작 버튼 ── */
+.bulk-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{
+  flex:1;min-width:120px;padding:12px 16px;border:none;border-radius:10px;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  transition:all .15s;
+}
+.btn:active{transform:scale(0.97)}
+.btn-danger{background:#c53030;color:#fff}
+.btn-restore{background:#2d6a4f;color:#fff}
+.btn-neutral{background:#2d3748;color:#a0aec0;border:1px solid #4a5568}
+.btn:disabled{background:#1a202c;color:#4a5568;cursor:default;transform:none}
+
+/* ── 로그 ── */
+.log-wrap{background:#0d1117;border:1px solid #2d3748;border-radius:10px;overflow:hidden}
+.log-header{background:#161b22;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2d3748}
+.log-header span{font-size:11px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.5px}
+.log-clear{font-size:11px;cursor:pointer;padding:3px 8px;border-radius:4px;background:none;border:none;color:#6e7681}
+.log-body{height:160px;overflow-y:auto;padding:8px 12px;font-family:monospace;font-size:11px;line-height:1.7}
+.log-line{display:flex;gap:6px}
+.log-time{color:#4a5568;flex-shrink:0}
+.log-msg{flex:1;word-break:break-all}
+.log-msg.ok{color:#56d364}
+.log-msg.warn{color:#e3b341}
+.log-msg.err{color:#f85149}
+.log-msg.info{color:#8b949e}
+
+/* ── 앱 링크 ── */
+.app-link{
+  display:block;width:100%;padding:14px;border-radius:10px;
+  background:linear-gradient(135deg,#185fa5,#1D9E75);
+  color:#fff;font-size:15px;font-weight:700;text-align:center;
+  text-decoration:none;cursor:pointer;transition:all .15s;
+}
+.app-link:active{transform:scale(0.97)}
+
+/* ── 백업 상태 ── */
+.state-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #2d3748}
+.state-row:last-child{border-bottom:none}
+.state-key{font-size:12px;color:#a0aec0}
+.state-val{font-size:12px;font-weight:600;font-family:monospace}
+.state-val.ok{color:#68d391}
+.state-val.warn{color:#f6ad55}
+.state-val.none{color:#4a5568}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛠 한자쓰기 테스트 헬퍼</h1>
+  <p>급수별 상태 조작 · 다른 유저에게 영향 없음</p>
+</div>
+
+<div class="main">
+
+  <div class="banner info" id="banner">
+    ⚙️ 이 기기의 localStorage만 조작합니다.<br>서버/다른 유저에게는 전혀 영향 없어요.
+  </div>
+
+  <!-- 급수별 상태 + 개별 조작 -->
+  <div class="card">
+    <div class="card-title">급수별 상태</div>
+    <div class="grade-table" id="grade-table">로딩 중...</div>
+  </div>
+
+  <!-- 전체 조작 -->
+  <div class="card">
+    <div class="card-title">전체 조작</div>
+    <div class="bulk-row">
+      <button class="btn btn-danger" id="btn-reset-all" onclick="resetAll()">🗑 전체 초기화</button>
+      <button class="btn btn-restore" id="btn-restore" onclick="restoreBackup()" disabled>↩ 백업 복원</button>
+    </div>
+  </div>
+
+  <!-- 백업 정보 -->
+  <div class="card" id="backup-card" style="display:none">
+    <div class="card-title">백업 저장됨</div>
+    <div id="backup-rows"></div>
+  </div>
+
+  <!-- 로그 -->
+  <div class="log-wrap">
+    <div class="log-header">
+      <span>📋 로그</span>
+      <button class="log-clear" onclick="clearLog()">지우기</button>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+  <!-- 앱 열기 -->
+  <a class="app-link" href="./index.html">한자쓰기 앱 열기 →</a>
+  <button class="btn btn-neutral" onclick="refresh()" style="width:100%">↺ 상태 새로고침</button>
+
+</div>
+
+<script>
+// ── 설정 ──
+const DATA_BASE_URL = './';
+const ALL_GRADES = ['8급','7급','6급','5급','4급a','4급b','3급a','3급b','2급','1급a','1급b'];
+const GRADE8_ALL = ['一','九','十','二','人','七','八','女','大','山','三','小','寸','土','六','木','父','水','五','王','月','日','中','火','母','民','白','北','四','生','外','兄','年','西','先','弟','東','門','長','靑','軍','南','室','校','國','萬','學','韓'];
+
+const LS = {
+  progress:     'hanja_progress',
+  user:         'hanja_user',
+  positions:    'hanja_positions',
+  testPass:     'hanja_test_pass',
+  completeSeen: 'hanja_complete_seen',
+  backup:       'hanja_TEST_BACKUP',
+  dbKey: g => 'hanja_db_' + g,
+};
+
+// ── 로그 ──
+function log(msg, type='info'){
+  const body = document.getElementById('log-body');
+  const div = document.createElement('div');
+  div.className = 'log-line';
+  const t = new Date().toTimeString().slice(0,8);
+  div.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+}
+function clearLog(){ document.getElementById('log-body').innerHTML=''; }
+
+// ── localStorage 유틸 ──
+function getProgress(){ try{ return JSON.parse(localStorage.getItem(LS.progress)||'{}'); }catch(e){ return {}; } }
+function saveProgress(p){ localStorage.setItem(LS.progress, JSON.stringify(p)); }
+function getGradeChars(g){
+  if(g === '8급') return GRADE8_ALL;
+  try{
+    const cached = localStorage.getItem(LS.dbKey(g));
+    if(cached){ const d=JSON.parse(cached); return (d[g]||[]).map(h=>h.char); }
+  }catch(e){}
+  return null; // 캐시 없음
+}
+function today(){ return new Date().toISOString().slice(0,10); }
+
+// ── 급수 상태 계산 ──
+function getGradeState(g){
+  const chars = getGradeChars(g);
+  const progress = getProgress();
+
+  if(g === '8급'){
+    const done = GRADE8_ALL.filter(ch => (progress[ch]||{}).lastScore >= 80).length;
+    const total = GRADE8_ALL.length;
+    if(done === 0) return { label:'미학습', cls:'none', done:0, total };
+    if(done === total) return { label:'완료', cls:'done', done, total };
+    return { label:`${done}/${total}자`, cls:'partial', done, total };
+  }
+
+  if(chars === null) return { label:'캐시 없음', cls:'none', done:0, total:0 };
+  if(chars.length === 0) return { label:'데이터 없음', cls:'none', done:0, total:0 };
+
+  const done = chars.filter(ch => (progress[ch]||{}).lastScore >= 80).length;
+  const total = chars.length;
+  if(done === 0) return { label:'미학습', cls:'none', done:0, total };
+  if(done === total) return { label:'완료', cls:'done', done, total };
+  return { label:`${done}/${total}자`, cls:'partial', done, total };
+}
+
+// ── 급수 완료 처리 ──
+async function setGradeDone(g, btn){
+  btn.disabled = true;
+  btn.className = 'action-btn btn-loading';
+  btn.textContent = '처리 중...';
+
+  let chars = getGradeChars(g);
+
+  // 캐시 없으면 fetch
+  if(chars === null){
+    log(`${g}: fetch 중...`, 'info');
+    try{
+      const url = DATA_BASE_URL + encodeURIComponent(g) + '.json';
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if(!data[g]) throw new Error('데이터 없음');
+      localStorage.setItem(LS.dbKey(g), JSON.stringify(data));
+      chars = data[g].map(h => h.char);
+      log(`${g}: fetch 성공 (${chars.length}자)`, 'ok');
+    } catch(e){
+      log(`${g}: fetch 실패 — ${e.message}`, 'err');
+      refresh();
+      return;
+    }
+  }
+
+  const progress = getProgress();
+  chars.forEach(ch => {
+    progress[ch] = { stage:1, nextReview:'9999-99-99', lastScore:85, learnDate:today(), grade:g };
+  });
+  saveProgress(progress);
+  log(`✓ ${g}: ${chars.length}자 완료 처리`, 'ok');
+  refresh();
+}
+
+// ── 급수 초기화 처리 ──
+function setGradeReset(g){
+  const chars = getGradeChars(g);
+  if(!chars){ log(`${g}: 캐시 없음 — 초기화 불필요`, 'info'); refresh(); return; }
+
+  const progress = getProgress();
+  let cnt = 0;
+  chars.forEach(ch => {
+    if(progress[ch]){ delete progress[ch]; cnt++; }
+  });
+  saveProgress(progress);
+
+  // completeSeen에서도 제거
+  try{
+    const seen = JSON.parse(localStorage.getItem(LS.completeSeen)||'[]');
+    const newSeen = seen.filter(s => s !== g);
+    localStorage.setItem(LS.completeSeen, JSON.stringify(newSeen));
+  }catch(e){}
+
+  log(`✓ ${g}: ${cnt}자 진도 초기화`, cnt > 0 ? 'ok' : 'warn');
+  refresh();
+}
+
+// ── 급수 테이블 렌더 ──
+function renderGradeTable(){
+  const table = document.getElementById('grade-table');
+  table.innerHTML = '';
+
+  ALL_GRADES.forEach(g => {
+    const state = getGradeState(g);
+
+    const row = document.createElement('div');
+    row.className = 'grade-row';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'grade-name';
+    nameEl.textContent = g;
+
+    const statusEl = document.createElement('div');
+    statusEl.className = 'grade-status ' + state.cls;
+    statusEl.textContent = state.label;
+
+    // 완료 버튼
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'action-btn btn-complete';
+    doneBtn.textContent = '완료';
+    doneBtn.onclick = () => {
+      saveBackup();
+      setGradeDone(g, doneBtn);
+    };
+    if(state.cls === 'done') doneBtn.style.opacity = '0.4';
+
+    // 미학습 버튼
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'action-btn btn-reset';
+    resetBtn.textContent = '초기화';
+    resetBtn.onclick = () => {
+      saveBackup();
+      setGradeReset(g);
+    };
+    if(state.cls === 'none') resetBtn.style.opacity = '0.4';
+
+    row.appendChild(nameEl);
+    row.appendChild(statusEl);
+    row.appendChild(doneBtn);
+    row.appendChild(resetBtn);
+    table.appendChild(row);
+  });
+}
+
+// ── 백업 ──
+function saveBackup(){
+  // 이미 백업 있으면 덮어쓰지 않음 (첫 백업 보존)
+  if(localStorage.getItem(LS.backup)) return;
+  const backup = {
+    savedAt: new Date().toLocaleString('ko-KR'),
+    progress: getProgress(),
+    user:     JSON.parse(localStorage.getItem(LS.user)||'{}'),
+    positions:JSON.parse(localStorage.getItem(LS.positions)||'{}'),
+    testPass: JSON.parse(localStorage.getItem(LS.testPass)||'{}'),
+    completeSeen: JSON.parse(localStorage.getItem(LS.completeSeen)||'[]'),
+  };
+  localStorage.setItem(LS.backup, JSON.stringify(backup));
+  log('백업 저장 (' + backup.savedAt + ')', 'ok');
+}
+
+function restoreBackup(){
+  const raw = localStorage.getItem(LS.backup);
+  if(!raw){ alert('백업 없음'); return; }
+  const backup = JSON.parse(raw);
+  if(!confirm('백업으로 복원할까요?\n(' + backup.savedAt + ' 저장분)')) return;
+
+  localStorage.setItem(LS.progress,     JSON.stringify(backup.progress||{}));
+  localStorage.setItem(LS.user,         JSON.stringify(backup.user||{}));
+  localStorage.setItem(LS.positions,    JSON.stringify(backup.positions||{}));
+  localStorage.setItem(LS.testPass,     JSON.stringify(backup.testPass||{}));
+  localStorage.setItem(LS.completeSeen, JSON.stringify(backup.completeSeen||[]));
+  // DB 캐시 삭제 (앱이 재시작 시 자동 재다운로드)
+  ALL_GRADES.slice(1).forEach(g => localStorage.removeItem(LS.dbKey(g)));
+  localStorage.removeItem(LS.backup);
+
+  log('복원 완료', 'ok');
+  document.getElementById('banner').className = 'banner ok';
+  document.getElementById('banner').textContent = '✅ 원래 데이터로 복원됐어요.';
+  refresh();
+}
+
+function resetAll(){
+  if(!confirm('모든 진도 데이터를 삭제할까요?')) return;
+  saveBackup();
+  localStorage.removeItem(LS.progress);
+  localStorage.removeItem(LS.positions);
+  localStorage.removeItem(LS.testPass);
+  localStorage.removeItem(LS.completeSeen);
+  ALL_GRADES.slice(1).forEach(g => localStorage.removeItem(LS.dbKey(g)));
+  log('전체 초기화 완료', 'warn');
+  refresh();
+}
+
+// ── 백업 카드 ──
+function renderBackupCard(){
+  const raw = localStorage.getItem(LS.backup);
+  const card = document.getElementById('backup-card');
+  const restoreBtn = document.getElementById('btn-restore');
+  if(raw){
+    card.style.display = '';
+    restoreBtn.disabled = false;
+    const b = JSON.parse(raw);
+    document.getElementById('backup-rows').innerHTML = `
+      <div class="state-row"><span class="state-key">저장 시각</span><span class="state-val ok">${b.savedAt||'-'}</span></div>
+      <div class="state-row"><span class="state-key">진도 글자 수</span><span class="state-val ok">${Object.keys(b.progress||{}).length}자</span></div>
+    `;
+  } else {
+    card.style.display = 'none';
+    restoreBtn.disabled = true;
+  }
+}
+
+// ── 전체 새로고침 ──
+function refresh(){
+  renderGradeTable();
+  renderBackupCard();
+}
+
+// ── 초기 로드 ──
+refresh();
+log('test-helper 로드 완료', 'info');
+</script>
+</body>
+</html>
