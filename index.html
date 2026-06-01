@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v20260514-fix-autonext-complete -->
+<!-- v20260601-mp3-tts -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -1216,74 +1216,58 @@ function getFreeMaxAttempts(){
   return gradeAttempts[cGrade] || 3;
 }
 
-// ── 훈음 TTS ──
-// 안드로이드: getVoices()가 처음엔 빈 배열, voiceschanged 이벤트 후 로드
-// onvoiceschanged를 놓쳤을 경우를 대비해 폴링 백업 추가
-let _voicesReady = false;
-let _pendingTts = null;
-let _voicePollTimer = null;
+// ── 훈음 TTS (mp3 방식) ──
+let _audioMap = null;      // audio_map.json 로드 후 저장
+let _audioMapLoading = false;
+let _currentAudio = null;  // 현재 재생 중인 Audio 객체
 
-function _initVoices(){
-  if(!window.speechSynthesis) return;
-  if(_voicesReady) return;
-  const v = speechSynthesis.getVoices();
-  if(v.length > 0){
-    _voicesReady = true;
-    _flushPendingTts();
-    return;
+function _meanToFilename(text){
+  // audio_map에 없을 경우 직접 변환 (fallback)
+  let s = text.replace(/\[[^\]]*\]/g,'')
+              .replace(/\((?!:)[^)]*\)/g,'')
+              .replace(/\(:\)/g,'')
+              .replace(/:/g,'')
+              .replace(/\s+/g,' ').trim();
+  if(s.includes('|')) s = s.split('|').map(p=>p.trim()).join(', ');
+  else if(s.includes('/')){
+    const li = s.lastIndexOf(' ');
+    if(li!==-1){
+      const eum = s.slice(li+1).trim();
+      const huns = s.slice(0,li).trim().split('/').map(h=>h.trim());
+      s = huns.map(h=>h+' '+eum).join(', ');
+    }
   }
-  // voiceschanged 이벤트 등록
-  speechSynthesis.onvoiceschanged = ()=>{
-    if(_voicesReady) return;
-    const vv = speechSynthesis.getVoices();
-    if(vv.length > 0){
-      _voicesReady = true;
-      clearInterval(_voicePollTimer);
-      _flushPendingTts();
-    }
-  };
-  // 폴링 백업: 100ms 간격, 최대 5초
-  let _pollCount = 0;
-  _voicePollTimer = setInterval(()=>{
-    _pollCount++;
-    const vv = speechSynthesis.getVoices();
-    if(vv.length > 0 || _pollCount > 50){
-      clearInterval(_voicePollTimer);
-      if(vv.length > 0 && !_voicesReady){
-        _voicesReady = true;
-        _flushPendingTts();
-      }
-    }
-  }, 100);
+  return s.replace(/ /g,'_').replace(/[\\/*?"<>|]/g,'')+'.mp3';
 }
 
-function _flushPendingTts(){
-  if(_pendingTts){
-    const text = _pendingTts;
-    _pendingTts = null;
-    _tts(text);
-  }
+async function _loadAudioMap(){
+  if(_audioMap) return _audioMap;
+  if(_audioMapLoading) return null;
+  _audioMapLoading = true;
+  try{
+    const r = await fetch('audio_map.json');
+    _audioMap = await r.json();
+  }catch(e){ _audioMap = {}; }
+  return _audioMap;
 }
+
+// 앱 시작 시 미리 로드
+_loadAudioMap();
 
 function _tts(text){
-  if(!window.speechSynthesis || !text) return;
-  if(!_voicesReady){
-    _pendingTts = text;
-    _initVoices();
-    return;
+  if(!text) return;
+  if(_currentAudio){
+    _currentAudio.pause();
+    _currentAudio = null;
   }
-  try { window.speechSynthesis.cancel(); } catch(e){}
-  // 삼성인터넷: ko-KR 음성이 없을 수 있으므로 lang 자동 선택
-  const voices = window.speechSynthesis.getVoices();
-  const koVoice = voices.find(v=>v.lang.startsWith('ko'));
-  const u = new SpeechSynthesisUtterance(text);
-  if(koVoice) u.voice = koVoice;
-  u.lang = koVoice ? koVoice.lang : 'ko-KR';
-  u.rate = 0.85; u.pitch = 1.1;
-  window.speechSynthesis.speak(u);
-  setTimeout(()=>{
-    try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){}
-  }, 50);
+  const play = (map)=>{
+    const fname = (map && map[text]) || _meanToFilename(text);
+    const audio = new Audio('audio/' + fname);
+    _currentAudio = audio;
+    audio.play().catch(()=>{});
+  };
+  if(_audioMap){ play(_audioMap); return; }
+  _loadAudioMap().then(map=>play(map));
 }
 
 function speakHooneum(){
@@ -2594,17 +2578,7 @@ function _doStartApp(grade){
 
   // TTS
   const h0 = DB[cGrade]?.[cIdx];
-  if(h0){
-    const text0 = h0.mean || h0.read;
-    if(_voicesReady){
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text0);
-      u.lang='ko-KR'; u.rate=0.85; u.pitch=1.1;
-      window.speechSynthesis.speak(u);
-    } else {
-      _pendingTts = text0;
-    }
-  }
+  if(h0) _tts(h0.mean || h0.read);
 
   setTimeout(()=>{ loadGrade('7급').catch(()=>{}); }, 2000);
 }
