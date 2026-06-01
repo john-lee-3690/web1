@@ -1251,8 +1251,7 @@ async function _loadAudioMap(){
   return _audioMap;
 }
 
-// 앱 시작 시 미리 로드
-_loadAudioMap();
+// audio_map은 첫 TTS 호출 시 lazy load
 
 function _tts(text){
   if(!text) return;
@@ -2527,7 +2526,6 @@ function _doStartApp(grade){
   } catch(e){}
 
   // 앱 초기화
-  _initVoices();
   // 미학습 글자 탐색: progress에 없거나 stage===0인 글자 = 미학습
   const gradeChars = DB[cGrade] || [];
   let startIdx = cIdx;
@@ -2591,7 +2589,6 @@ window.addEventListener('resize',()=>{
   }
   if(document.getElementById('main-panel').style.display!=='none') setupCanvas();
 });
-_initVoices(); // 페이지 로드 시점에 미리 voices 준비 시작
 init();
 
 // 시작하기 버튼: HTML onclick="onSplashBtn()" 으로 처리
@@ -2657,7 +2654,7 @@ function closeBanner(){ /* PWA 배너 제거됨 */ }
         history.replaceState(null,'',location.pathname);
         const splash = document.getElementById('splash-screen');
         if(splash) splash.style.display = 'none';
-        _initVoices();
+        _loadAudioMap();
         selectChar(0);
         return;
       }
