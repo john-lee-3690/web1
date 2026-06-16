@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v20260601-mp3-tts -->
+<!-- v20260602-mp3-tts -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -220,30 +220,14 @@ button:active{transform:scale(0.97)}
 .test-review-btn:hover{background:#0c447c}
 
 
-/* ════ 태블릿 반응형 (≥600px) ════ */
+/* ════ 태블릿 반응형 (≥600px) — 단일 컬럼 유지, 크기만 스케일업 ════ */
 @media (min-width:600px){
   #app{
-    max-width:920px;
-    display:grid;
-    grid-template-columns:280px 1fr;
-    grid-template-areas:
-      "title   title"
-      "grades  panel"
-      "today   panel"
-      "ad      panel"
-      "nav     panel"
-      "pginfo  panel"
-      "foot    panel";
-    column-gap:18px;
-    padding:16px;
+    max-width:600px;
+    display:block;
+    padding:14px 16px;
   }
-  h1{grid-area:title;font-size:19px;margin-bottom:10px;text-align:left}
-  .grade-bar{grid-area:grades;margin-bottom:8px}
-  .today-bar{grid-area:today;margin-bottom:8px}
-  .ad-banner{grid-area:ad;height:90px;margin-bottom:10px}
-  .row-nav{grid-area:nav;margin-bottom:0}
-  .page-info{grid-area:pginfo;margin-bottom:4px;font-size:12px}
-  #main-panel{grid-area:panel;align-self:start}
+  h1{font-size:20px;margin-bottom:10px;text-align:center}
 
   /* 글자 카드 */
   .hanja-card{height:66px}
@@ -252,23 +236,26 @@ button:active{transform:scale(0.97)}
   .page-btn{width:32px;height:66px;font-size:16px}
 
   /* 패널 내부 */
-  .big-char{font-size:60px;min-width:64px}
+  .big-char{font-size:52px;min-width:58px}
   .meaning{font-size:15px}
   .reading-badge{font-size:13px;padding:3px 10px}
   .stroke-info{font-size:12px}
-  .phase-tab{font-size:clamp(11px,3vw,13px);padding:9px 4px;white-space:nowrap}
-  .status{font-size:13px}
-  button{font-size:13px;padding:8px 14px}
-  .dot{width:20px;height:20px;font-size:10px}
-  .att-dot{width:16px;height:16px}
+  .phase-tab{font-size:clamp(13px,2.5vw,15px);padding:11px 4px;white-space:nowrap}
+  .status{font-size:14px}
+  button{font-size:14px;padding:9px 15px}
+  .dot{width:22px;height:22px;font-size:10px}
+  .att-dot{width:17px;height:17px}
 }
 
 /* ════ 대형 태블릿 (≥900px) ════ */
 @media (min-width:900px){
-  #app{max-width:1100px;grid-template-columns:310px 1fr;column-gap:24px}
+  #app{max-width:700px;}
   .hanja-card{height:72px}
   .hanja-card .ch{font-size:28px}
-  .big-char{font-size:68px}
+  .big-char{font-size:58px;min-width:64px}
+  .phase-tab{font-size:15px;padding:12px 4px}
+  button{font-size:15px;padding:10px 16px}
+  .dot{width:24px;height:24px}
 }
 
 /* ── 상단 한 줄 바 ── */
@@ -361,10 +348,13 @@ h1{font-size:18px!important;font-weight:700!important}
 .info-phase{display:block!important}
 
 /* ── 캔버스: 주소창 고려 svh 기반 최대 높이 ── */
-@media (max-width:599px){
+.canvas-wrap{
+  max-height: calc(100svh - 385px);
+  overflow:hidden;
+}
+@media (min-width:600px){
   .canvas-wrap{
-    max-height: calc(100svh - 385px);
-    overflow:hidden;
+    max-height: calc(100svh - 320px);
   }
 }
 
@@ -1216,13 +1206,13 @@ function getFreeMaxAttempts(){
   return gradeAttempts[cGrade] || 3;
 }
 
+// ── 훈음 TTS ──
 // ── 훈음 TTS (mp3 방식) ──
-let _audioMap = null;      // audio_map.json 로드 후 저장
+let _audioMap = null;
 let _audioMapLoading = false;
-let _currentAudio = null;  // 현재 재생 중인 Audio 객체
+let _currentAudio = null;
 
 function _meanToFilename(text){
-  // audio_map에 없을 경우 직접 변환 (fallback)
   let s = text.replace(/\[[^\]]*\]/g,'')
               .replace(/\((?!:)[^)]*\)/g,'')
               .replace(/\(:\)/g,'')
@@ -1250,8 +1240,6 @@ async function _loadAudioMap(){
   }catch(e){ _audioMap = {}; }
   return _audioMap;
 }
-
-// audio_map은 첫 TTS 호출 시 lazy load
 
 function _tts(text){
   if(!text) return;
