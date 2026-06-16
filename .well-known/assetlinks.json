@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "kr.hanjawriting.app",
+      "sha256_cert_fingerprints": [
+        "4B:69:B8:FC:FD:FA:45:20:74:29:97:A8:38:30:33:E0:A5:25:6D:CB:47:34:72:49:C4:18:A9:CE:EB:2A:ED:ED"
+      ]
+    }
+  }
+]
